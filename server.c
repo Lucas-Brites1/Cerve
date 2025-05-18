@@ -76,14 +76,14 @@ void start_server(server_t *server_config) {
 
 		for(int i=0; i<server_config->server_middlewares.middleware_counter; i++) {
 			middleware_t *current_middleware = &server_config->server_middlewares.middlewares[i];
-			if(current_middleware && current_middleware->endpoints==NULL) {
-				server_config->server_middlewares.middlewares[i].callback(create_http_request(parse_method_enum(method), endpoint, version, buffer));
-			} 
+			if (current_middleware && (current_middleware->endpoints == NULL || current_middleware->endpoints[0] == NULL)) {
+    			current_middleware->callback(create_http_request(buffer, endpoint, parse_method_enum(method)));
+			}
 			else if (current_middleware && current_middleware->endpoints!=NULL) {
 				int j = 0;
 				while(current_middleware->endpoints[j] != NULL) {
 					if(compare_strings(current_middleware->endpoints[j], endpoint, f)) {
-						current_middleware->callback(create_http_request(parse_method_enum(method), endpoint, version, buffer));
+						current_middleware->callback(create_http_request(buffer, endpoint, parse_method_enum(method)));
 					}
 					j++;
 				}
@@ -92,10 +92,13 @@ void start_server(server_t *server_config) {
 
 		for(int i=0; i<server_config->server_routes.route_counter; i++) {
 			route_t *route = &server_config->server_routes.routes[i];
-			if(route->callback == NULL) continue;
+			if(route->handler == NULL) continue;
 
 			if (compare_strings(route->method, method, f) && compare_strings(route->endpoint, endpoint, f)) {
-				http_response_t response = route->callback(buffer);
+				http_request_t http_req = create_http_request(buffer, endpoint, parse_method_enum(method));
+				http_response_t* http_resp = (http_response_t*)malloc(sizeof(http_resp));
+
+				http_response_t response = route->handler(http_req, http_resp);
 				char response_buffer[BUFFER_LEN];
 				int response_length = snprintf(response_buffer, BUFFER_LEN,
 									"HTTP/1.1 %d OK\r\n"

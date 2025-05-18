@@ -4,14 +4,14 @@
 #include <stdio.h>
 #include <string.h>
 
-route_t init_route(const char *method, const char *endpoint, const char *version, route_callback_t cb) {
+route_t init_route(const char *method, const char *endpoint, const char *version, route_handler_t handler) {
     route_t r;
     memset(&r, 0, sizeof(route_t));
 
     strncpy(r.method, method, METHOD_LEN - 1);
     strncpy(r.endpoint, endpoint, ENDPOINT_LEN - 1);
     strncpy(r.version, version, VERSION_LEN - 1);
-    r.callback = cb;
+    r.handler = handler;
 
     return r;
 }
@@ -48,40 +48,44 @@ boolean add_middleware(middleware_t *middleware_config, server_t *server_config)
     return t;
 }
 
-const char** make_endpoint_array(const char* endpoint) {
-    if(!endpoint) return NULL;
-    if(has_multiple_segments(endpoint)) {
-        char** segments = split_endpoint_segments(endpoint);
-        if(!segments) return NULL;
+const char** make_endpoint_array(const char** endpoints_input) {
+    if (!endpoints_input) return NULL;
 
-        int count = 0;
-        while(segments[count]) count++;
-
-        const char** endpoints = malloc((count+1) * sizeof(char*));
-
-        for(int i = 0; i < count; i++) {
-            int len = get_strlen(segments[i]);
-
-            char *fullendpoint = malloc(len + 2);
-            if(!fullendpoint) continue;
-
-            fullendpoint[0] = '/';   
-            for(int j=0; j < len; j++) fullendpoint[j + 1] = segments[i][j];
-            fullendpoint[len+1] = '\0';
-
-            endpoints[i] = fullendpoint;
-            free(segments[i]);
-        }
-
-        endpoints[count] = NULL;
-        free(segments);
-        return endpoints;
+    int count = 0;
+    while (endpoints_input[count] != NULL) {
+        count++;
     }
 
-    const char **endpoint_array = malloc(2 * sizeof(char*));
-    if(!endpoint_array) return NULL;
+    const char** result = malloc((count + 1) * sizeof(char*));
+    if (!result) {
+        perror("malloc failed");
+        return NULL;
+    }
 
-    endpoint_array[0] = endpoint;
-    endpoint_array[1] = NULL;
-    return endpoint_array;
+    for (int i = 0; i < count; i++) {
+        const char* ep = endpoints_input[i];
+
+        int needs_slash = ep[0] != '/';
+        int len = strlen(ep);
+
+        char* formatted = malloc(len + needs_slash + 1);
+        if (!formatted) {
+            perror("malloc failed for endpoint");
+            result[i] = NULL;
+            continue;
+        }
+
+        if (needs_slash) {
+            formatted[0] = '/';
+            memcpy(formatted + 1, ep, len);
+            formatted[len + 1] = '\0';
+        } else {
+            memcpy(formatted, ep, len + 1); // inclui '\0'
+        }
+
+        result[i] = formatted;
+    }
+
+    result[count] = NULL;
+    return result;
 }

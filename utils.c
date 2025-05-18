@@ -88,15 +88,6 @@ boolean compare_strings(const char *a, const char *b, boolean ignore_case) {
     return (a[i] == '\0' && b[i] == '\0') ? t : f;
 }
 
-http_request_t create_http_request(method_t method, const char *endpoint, const char *version, const char *body) {
-    return (http_request_t){
-        .method = method,
-        .endpoint = endpoint,
-        .version = version,
-        .body = body
-    };
-}
-
 method_t parse_method_enum(char *method_str) {
     if(method_str[0] == 'G' || method_str[0] == 'g') return GET;
 
@@ -159,3 +150,20 @@ char** split_endpoint_segments(const char *endpoint) {
 
     return segments;
 }
+
+
+http_request_t create_http_request(const char* buffer, const char *endpoint, method_t method) {
+    char *body_start = strstr(buffer, "\r\n\r\n");
+    if (body_start) {
+        body_start += 4;
+    } else {
+        body_start = NULL;
+    }
+        http_request_t r = {0};
+        r.body = body_start;
+        r.method = method;
+        r.endpoint = endpoint;
+        return r;
+}
+
+    

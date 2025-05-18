@@ -8,6 +8,7 @@
 #define VERSION_LEN 16
 #define MAX_ROUTES 256
 
+
 #define SET_IP(ip_str, addr_struct)                         \
     do {                                                    \
         if (inet_pton(AF_INET, (ip_str),                    \
@@ -16,6 +17,19 @@
             exit(EXIT_FAILURE);                             \
         }                                                   \
     } while (0)
+
+
+#define GET(endpoint, handler, serverconfig)                 	\
+    do {                                                     	\
+        route_t* r = malloc(sizeof(route_t));                	\
+        *r = init_route("GET", endpoint, "HTTP/1.1", handler); 	\
+        add_route(r, serverconfig);                          	\
+    } while(0)													\
+	
+
+#define ENDPOINTS(...) make_endpoint_array((const char*[]){__VA_ARGS__, NULL})
+#define USE_MIDDLEWARE(s, fn, ...) \
+    add_middleware(init_middleware(ENDPOINTS(__VA_ARGS__), fn), s)
 
 typedef enum {
 	t = 1,
@@ -42,11 +56,10 @@ typedef struct {
 typedef struct {
 	method_t method;
 	const char *endpoint;
-	const char *version;
 	const char *body;	
 } http_request_t;
 
-typedef http_response_t (*route_callback_t)(const char* body);
+typedef http_response_t (*route_handler_t)(http_request_t req, http_response_t *res);
 typedef void (*middleware_callback_t)(http_request_t request);
 
 typedef struct Middleware {
@@ -55,7 +68,7 @@ typedef struct Middleware {
 } middleware_t;
 
 typedef struct Route {
-	route_callback_t callback; // 8
+	route_handler_t handler; // 8
 	char method[METHOD_LEN]; // 16 
 	char endpoint[ENDPOINT_LEN]; // 256 
 	char version[VERSION_LEN]; // 16
@@ -88,11 +101,9 @@ typedef struct Server {
 server_t* init_server(uint16_t port, const char* ip);
 void start_server(server_t *server_config);
 
-route_t init_route(const char *method, const char *endpoint, const char *version, route_callback_t cb);
+route_t init_route(const char *method, const char *endpoint, const char *version, route_handler_t cb);
 boolean add_route(route_t *route_config, server_t *server_config);
 
 middleware_t* init_middleware(const char **endpoints, middleware_callback_t cb);
 boolean add_middleware(middleware_t *middleware_config, server_t *server_config);
-const char** make_endpoint_array(const char* endpoint);
-
-http_request_t create_http_request(method_t method, const char *endpoint, const char *version, const char *body);
+const char** make_endpoint_array(const char** endpoint);
