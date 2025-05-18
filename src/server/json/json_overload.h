@@ -3,7 +3,7 @@
 #include "json.h"
 #include "./server/types.h"
 
-boolean json_add_int(json_object_t* obj, const char* key, int value) {
+static inline boolean json_add_int(json_object_t* obj, const char* key, int value) {
     if (value == 0 || value == 1) {
         boolean b = value ? t : f;
         return add_to_json(obj, key, &b, JSON_BOOL);  
