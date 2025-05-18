@@ -1,4 +1,5 @@
-#include "server.h"
+#include "utils.h"
+#include "./server/http/request.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,9 +15,9 @@ char to_upper_char(char c) {
 void to_upper(char *str) {
     if(!str) return;
 
-    int i=0;
+    int i = 0;
     while(str[i] != '\0') {
-        if(is_letter_lowercase(str[i])) to_upper_char(str[i]);
+        str[i] = to_upper_char(str[i]);
         i++;
     }
 }
@@ -57,8 +58,11 @@ int get_strlen(const char* str) {
     return i;
 }
 
-char* str_concat(const char *a, const char *b) {
+concat_helper_t* str_concat(const char *a, const char *b) {
 	if(!a || !b) return NULL;
+
+    concat_helper_t* c = (concat_helper_t*) malloc(sizeof(concat_helper_t));
+    if(!c) return NULL;
 
 	int len_a = get_strlen(a);
 	int len_b = get_strlen(b);
@@ -70,8 +74,10 @@ char* str_concat(const char *a, const char *b) {
 	for(; i < len_a; i++) result[i] = a[i];
 	for(int j=0; j < len_b; j++) result[i++] = b[j];
 	result[i] = '\0';
-
-	return result;
+    
+    c->string_concatened=result;
+    c->len = len_a + len_b + 1;
+	return c;
 }
 
 boolean compare_strings(const char *a, const char *b, boolean ignore_case) {
@@ -165,5 +171,3 @@ http_request_t create_http_request(const char* buffer, const char *endpoint, met
         r.endpoint = endpoint;
         return r;
 }
-
-    

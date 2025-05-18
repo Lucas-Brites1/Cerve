@@ -1,10 +1,12 @@
-#include "server.h"
-#include "utils.h"
+#include "./server/server.h"
+#include "./server/utils/utils.h"
+#include "./server/json/json.h"
+#include "./server/json/json_overload.h"
+#include "./server/router.h"
 #include <stdio.h>
 #include <stdlib.h>
 
 http_response_t hello(http_request_t req, http_response_t *res) {
-    http_response_t r;
     (*res).body = "Hello world!\n";
     (*res).content_type = "text/plain";
     (*res).status_code = 200;
@@ -12,11 +14,19 @@ http_response_t hello(http_request_t req, http_response_t *res) {
 }
 
 http_response_t hellojson(http_request_t req, http_response_t *res) {
-    http_response_t r;
-    (*res).body = "{\"message\": \"Hello World, with JSON! :)\"}";
+    json_object_t* obj = create_json_object();
+    JSON(obj, "nome", "Lucas Silva Brites");
+    JSON(obj, "idade", 23);
+	JSON(obj, "ativo", f);
+    JSON(obj, "altura", 1.78);
+    char* json = json_stringfy(obj);
+    puts(json);
+
+    (*res).body = json;
     (*res).content_type = "application/json";
     (*res).status_code = 200;
     return (*res);
+    free(json);
 }
 
 void logger(http_request_t request) {

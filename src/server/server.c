@@ -6,8 +6,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "server.h"
-#include "utils.h"
+#include "server/server.h"
+#include "./utils/utils.h"
 
 server_t* init_server(uint16_t port, const char *ip) {
 	server_t* s = (server_t*)malloc(sizeof(server_t));
@@ -73,7 +73,7 @@ void start_server(server_t *server_config) {
 		char version[VERSION_LEN] = {0};
 
 		parser(buffer, method, endpoint, version);
-
+		
 		for(int i=0; i<server_config->server_middlewares.middleware_counter; i++) {
 			middleware_t *current_middleware = &server_config->server_middlewares.middlewares[i];
 			if (current_middleware && (current_middleware->endpoints == NULL || current_middleware->endpoints[0] == NULL)) {
