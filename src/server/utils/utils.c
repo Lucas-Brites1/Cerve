@@ -171,3 +171,82 @@ http_request_t create_http_request(const char* buffer, const char *endpoint, met
         r.endpoint = endpoint;
         return r;
 }
+
+
+int starts_with(const char *str, const char *prefix) {
+	if(*prefix == '\0') return 1;
+	if(*str != *prefix) return 0;
+	return starts_with(str + 1, prefix + 1);
+}
+
+char* mv_stringtosubstring(const char* str, char* substr) {
+	if((char)*str == '\0') return NULL;
+	if(!str) return NULL;
+	if(starts_with(str, substr)) return (char*)str;
+	return mv_stringtosubstring(str + 1, substr);
+}
+
+char* mv_stringto(char* string, char point) {
+    if(!string) return NULL; 
+    if((char)*string == point) return string;
+    if((char)*string == '\0') return NULL;
+    return mv_stringto(string + 1, point);
+}
+
+char* strcopy_start_end(char* string, char startpoint, char endpoint) {
+    if (!string) return NULL;
+
+    char* start = mv_stringto(string, startpoint);
+    if (!start) return NULL;
+    start++;
+
+    while (*start == ' ' || *start == ':') start++;
+
+    char* end = start;
+
+    if (*start == '\"') {
+        start++; 
+        end = start;
+        while (*end && *end != '\"') end++;
+    } else {
+        while (*end && *end != endpoint && *end != '\n' && *end != '}' && *end != ']') end++;
+        while (end > start && (*(end - 1) == ' ')) end--;
+    }
+
+    int len = end - start;
+    char* new_string = malloc(len + 1);
+    if (!new_string) return NULL;
+
+    for (int i = 0; i < len; i++) new_string[i] = start[i];
+    new_string[len] = '\0';
+
+    return new_string;
+}
+
+char* find_closing_brace(char* start) {
+    if (*start != '{') return NULL;  // segurança extra
+    int brace_count = 1;
+    start++;  // Avança para depois do primeiro '{'
+
+    while (*start) {
+        if (*start == '{') {
+            brace_count++;
+        } else if (*start == '}') {
+            brace_count--;
+            if (brace_count == 0) {
+                return start;
+            }
+        }
+        start++;
+    }
+    return NULL;
+}
+
+char* strndup(const char *str, size_t len) {
+    char *dup = malloc(len + 1);
+    if (dup) {
+        memcpy(dup, str, len);
+        dup[len] = '\0';
+    }
+    return dup;
+}

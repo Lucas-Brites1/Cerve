@@ -6,6 +6,7 @@
 #include "middleware.h"
 #include "types.h"
 
+#define LOCALHOST "127.0.0.1"
 #define PORT(port_number) (htons(port_number))
 #define BUFFER_LEN 2048
 

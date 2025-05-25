@@ -13,8 +13,9 @@ SRC = main.c \
 	$(SERVERDIR)/server.c \
 	$(SERVERDIR)/router.c \
 	$(SERVERDIR)/middleware.c \
+	$(SERVERDIR)/server_utils.c \
 	$(UTILSDIR)/utils.c \
-	$(JSONDIR)/json.c
+	$(JSONDIR)/json.c 
 
 all: $(TARGET)
 

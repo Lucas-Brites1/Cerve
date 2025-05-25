@@ -16,6 +16,12 @@ typedef struct server_t server_t;
         add_route(r, serverconfig);                          	\
     } while(0)													\
 	
+#define POST(endpoint, handler, serverconfig)                   \
+    do {                                                        \
+        route_t* r = malloc(sizeof(route_t));                   \
+        *r = init_route("POST", endpoint, "HTTP/1.1", handler)  \
+        add_route(r, serverconfig)                              \
+    } while(0)                                                  \
 
 typedef http_response_t (*route_handler_t)(http_request_t req, http_response_t *res);
     

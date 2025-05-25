@@ -1,4 +1,4 @@
-#define _POSIX_C_SOURCE 200809L
+#define _POSIX_C_SOURCE 200809
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,7 +61,7 @@ boolean add_to_json(json_object_t *json_object, const char *key, void *value, js
     return t;
 }
 
-char* json_stringify(json_object_t *json_object) {
+char* serialize(json_object_t *json_object) {
     if (!json_object) return NULL;
     
     concat_helper_t* result = str_concat("", "{");
@@ -94,12 +94,12 @@ char* json_stringify(json_object_t *json_object) {
                 break;
 
             case JSON_OBJECT:
-                char *inner = json_stringify((json_object_t*)field->value.object_val);
+                char *inner = serialize((json_object_t*)field->value.object_val);
                 value_str = strdup(inner);
                 break; 
             
             case JSON_ARRAY:
-                char* array_str = array_stringify((json_array_t*)field->value.array_val);
+                char* array_str = array_serialize((json_array_t*)field->value.array_val);
                 value_str = strdup(array_str);
                 break;
         }
@@ -198,7 +198,7 @@ boolean add_to_array(json_array_t* json_array, void* value, json_type_t type) {
     return t;
 }
 
-char* array_stringify(json_array_t* json_array) {
+char* array_serialize(json_array_t* json_array) {
     if (!json_array) return NULL;
 
     concat_helper_t* result = str_concat("", "[");
@@ -230,12 +230,12 @@ char* array_stringify(json_array_t* json_array) {
                 break;
 
             case JSON_OBJECT:
-                char *inner_object = json_stringify((json_object_t*)element->value.object_val);
+                char *inner_object = serialize((json_object_t*)element->value.object_val);
                 value_str = inner_object;
                 break; 
 
             case JSON_ARRAY:
-                char *inner_array = array_stringify((json_array_t*)element->value.array_val);
+                char *inner_array = array_serialize((json_array_t*)element->value.array_val);
                 value_str = inner_array;
                 break;
         }
@@ -262,3 +262,148 @@ char* array_stringify(json_array_t* json_array) {
     return closed->string_concatened;
 }
 
+
+// Deserializer.c
+void deserialize(const char* serialized_json, void *struct_to_deserialize_ptr, field_descriptor_t* descriptors) {
+    for(int i = 0; descriptors[i].field_key != NULL; i++) {
+        field_descriptor_t* current_field = &descriptors[i];
+        if (!current_field) continue;
+
+        const char* key = current_field->field_key;
+        field_type_t type = current_field->field_type;
+        size_t offset = current_field->field_offset;
+
+        char* key_pos = mv_stringtosubstring(serialized_json, (char*)key);
+        if (!key_pos) continue;
+
+        char* clean_value = strcopy_start_end(key_pos, ':', ',');
+        if (!clean_value) continue;
+
+        void* field_ptr = (char*)struct_to_deserialize_ptr + offset;
+
+        switch (type) {
+            case FIELD_NUMBER: {
+                int value = atoi(clean_value);
+                memcpy(field_ptr, &value, sizeof(int));
+                break;
+            }
+            case FIELD_STRING: {
+                char* heap_str = strdup(clean_value);
+                if (!heap_str) {
+                    free(clean_value);
+                    return;
+                }
+                memcpy(field_ptr, &heap_str, sizeof(char*)); 
+                break;
+            }
+            case FIELD_BOOL: {
+                int value = 0;
+                if (strncmp(clean_value, "true", 4) == 0) value = 1;
+                memcpy(field_ptr, &value, sizeof(int));
+                break;
+            }
+            case FIELD_NULL: {
+                if (strncmp(clean_value, "null", 4) == 0) {
+                    void* null_value = NULL;
+                    memcpy(field_ptr, &null_value, sizeof(void*));
+                }
+                break;
+            }
+            case FIELD_OBJECT: {
+                if (!current_field->sub_descriptor) break;
+                
+                char* object_start = mv_stringto(key_pos, '{');
+                if (!object_start) break;
+
+                char* object_end = find_closing_brace(object_start);
+                if(!object_end) break;
+
+                size_t object_len = object_end - object_start + 1;  // Ajuste aqui para pegar o comprimento correto
+
+                char* subjson = strndup(object_start, object_len);  // Corrigir tamanho da string
+                if (!subjson) break;
+
+                printf("\n\t\nObject_start: %s\nObject_end: %s\nObject_len: %ld\nSubjson: %s\n", object_start, object_end, object_len, subjson);
+
+                void** struct_field_ptr = (void**)((char*)struct_to_deserialize_ptr + offset);
+                *struct_field_ptr = malloc(current_field->object_size); 
+
+                if (!*struct_field_ptr) {
+                    free(subjson);
+                    break;
+                    }
+                deserialize(subjson, *struct_field_ptr, current_field->sub_descriptor);
+                free(subjson);
+                break;
+            }
+            case FIELD_ARRAY: {
+                if(current_field->array_type == ARRAY_OBJECT) {deserialize_array(current_field->array_type, clean_value, key, struct_to_deserialize_ptr, offset, current_field->sub_descriptor); continue;}
+                deserialize_array(current_field->array_type, clean_value, key, struct_to_deserialize_ptr, offset, NULL);
+            }
+            default:
+                break;
+        }
+
+        free(clean_value);  
+    }
+}
+
+field_array_t* create_array_to_deserialize(array_type_t array_type) {
+    field_array_t* array = (field_array_t*)malloc(sizeof(field_array_t));
+    if(!array) return NULL;
+
+    array->array_type = array_type;
+    array->capacity = INITIAL_CAPACITY;
+    array->count = 0;
+    
+    array->elements= calloc(INITIAL_CAPACITY, sizeof(field_array_element_t));    
+    if(!array->elements) return NULL;
+    return array;
+}
+
+void add_to_deserializer_array(field_array_t* arr, void* value, field_type_t value_type) {
+    if(!arr) return;
+    if(arr->array_type != ARRAY_GENERIC) {
+        if((int)arr->array_type != (int)value_type) return;
+    }
+
+    if(arr->count >= arr->capacity) {
+        int new_capacity = arr->capacity * 2;
+        field_array_element_t* new_elements = (field_array_element_t*)realloc(arr->elements, sizeof(field_array_element_t) * new_capacity);
+        if(!new_elements) return;
+
+        arr->elements = new_elements;
+        arr->capacity = new_capacity;
+    }
+
+    field_array_element_t new_element = {0};
+    new_element.element_type = value_type;
+    new_element.element_value = value;
+    arr->elements[arr->count++] = new_element;
+}
+
+void deserialize_array(
+    array_type_t type,
+    const char* serialized_json,
+    const char* array_key,
+    void* struct_to_deserialize_ptr,
+    size_t array_field_offset,
+    field_descriptor_t* object_descriptor // usado apenas se for ARRAY_OBJECT
+) {
+    if(!serialized_json || !array_key || !struct_to_deserialize_ptr) return;
+    if(type == ARRAY_OBJECT && !object_descriptor) return;
+
+    printf("\nSERIALIZED_JSON: %s", serialized_json);
+    printf("Searching for array with key: %s\n", array_key);
+
+    char* array_json = mv_stringto(serialized_json, '\"');
+    if (array_json) {
+        printf("\n\tARRAY found: %s\n", array_json);
+    } else {
+        printf("\n\tARRAY not found.\n");
+    }
+
+    switch(type) {
+        
+    }
+}

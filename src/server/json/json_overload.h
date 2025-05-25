@@ -18,7 +18,6 @@ static inline boolean json_add_float(json_object_t* obj, const char* key, float 
     return add_to_json(obj, key, &v, JSON_NUMBER);
 }
 
-
 static inline boolean json_add_double(json_object_t* obj, const char* key, double val) {
     return add_to_json(obj, key, &val, JSON_NUMBER);
 }
@@ -63,8 +62,6 @@ static inline boolean arr_add_int(json_array_t* arr, int value) {
 
 #define JSON_NULLISH(obj, key)                      \
     json_add_null(obj, key)                         \
-
-//json_array_t* : json_add_array
 
 static inline boolean add_int_to_array(json_array_t* arr, int value) {
     double v = (double)value;
@@ -114,3 +111,22 @@ static inline boolean add_json_array_to_array(json_array_t* arr, json_array_t* a
         json_object_t*: add_json_object_to_array, \
         json_array_t*: add_json_array_to_array \
     )(arr, value)
+
+#define DESERIALIZE_FIELD(type, key, struct_type, field) \
+    (field_descriptor_t){type, key, offsetof(struct_type, field), NULL, 0, 0}
+
+#define DESERIALIZE_FIELD_ARRAY(type, key, struct_type, field, array_type) \
+    (field_descriptor_t){type, key, offsetof(struct_type, field), NULL, 0, array_type}
+
+#define DESERIALIZE_FIELD_OBJECT(type, key, struct_type, field, subdesc) \
+    (field_descriptor_t){ \
+        .field_type = type, \
+        .field_key = key, \
+        .field_offset = offsetof(struct_type, field), \
+        .sub_descriptor = subdesc, \
+        .object_size = sizeof(*((struct_type*)0)->field) \
+    }
+
+
+#define FIELD_SENTINEL (field_descriptor_t){0, NULL, 0, NULL, 0, 0}
+#define END_FIELDS FIELD_SENTINEL

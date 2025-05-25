@@ -1,0 +1,18 @@
+{
+    "files.associations": {
+        "type_traits": "cpp",
+        "utility": "cpp",
+        "cstdlib": "c",
+        "compare": "c",
+        "server.h": "c",
+        "string.h": "c",
+        "stdlib.h": "c",
+        "request.h": "c",
+        "response.h": "c",
+        "initializer_list": "c",
+        "types.h": "c",
+        "typeinfo": "c",
+        "utils.h": "c",
+        "stdio.h": "c"
+    }
+}
